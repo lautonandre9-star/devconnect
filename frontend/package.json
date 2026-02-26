@@ -1,0 +1,35 @@
+{
+  "type": "module",
+  "name": "devconnect-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@google/genai": "^1.39.0",
+    "axios": "^1.13.5",
+    "clsx": "^2.1.1",
+    "cookie-parser": "^1.4.7",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^11.18.2",
+    "lucide-react": "^0.460.0",
+    "nodejs": "^0.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.13.0",
+    "socket.io-client": "^4.8.3",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^5.1.2",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.4.5",
+    "vite": "^7.3.1"
+  }
+}

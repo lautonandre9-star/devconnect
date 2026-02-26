@@ -1,0 +1,561 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Tipos de Utilizador
+enum UserType {
+  developer
+  company
+}
+
+// Tipos de Vaga
+enum JobType {
+  FullTime
+  Internship
+  Contract
+}
+
+// Status de Candidatura
+enum ApplicationStatus {
+  PENDING
+  REVIEWING
+  INTERVIEW
+  ACCEPTED
+  REJECTED
+}
+
+// Status de Startup
+enum StartupStatus {
+  MVP
+  Beta
+  Scaling
+}
+
+// Tipos de Evento
+enum EventType {
+  Hackathon
+  Meetup
+  Webinar
+}
+
+// Visibilidade do perfil
+enum ProfileVisibility {
+  public
+  connections
+  private
+}
+
+// Linguagem de código no showcase
+enum CodeLanguage {
+  html
+  javascript
+  react
+}
+
+// Status de Amizade (NOVO)
+enum FriendshipStatus {
+  pending
+  accepted
+  blocked
+}
+
+// Tipos de Notificação (NOVO)
+enum NotificationType {
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  JOB_APPLICATION
+  APPLICATION_STATUS_CHANGE
+  NEW_MESSAGE
+  EVENT_REMINDER
+  SYSTEM
+}
+
+// Tipo de Mensagem
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  AUDIO
+}
+
+// ==================== MODELS ====================
+
+// Utilizador (Developer ou Company)
+model User {
+  id              String    @id @default(cuid())
+  type            UserType  @default(developer)
+
+  // Dados básicos
+  name            String
+  username        String    @unique
+  email           String    @unique
+  password        String
+  bio             String?   @db.Text
+  avatar          String?   @db.LongText
+  role            String?
+
+  // Developer specific
+  githubUsername  String?
+  skills          Json?
+
+  // Company specific
+  website         String?
+  companyDescription String? @db.Text
+  industry        String?
+  logo            String?
+
+  // Relações existentes
+  jobsPosted      Job[]            @relation("CompanyJobs")
+  applications    Application[]    @relation("DeveloperApplications")
+  projects        Project[]        @relation("UserProjects")
+  comments        Comment[]        @relation("UserComments")
+  startupProjects StartupProject[] @relation("UserStartups")
+
+  // Relações de bookmarks e settings
+  bookmarks       Bookmark[]       @relation("UserBookmarks")
+  settings        UserSettings?    @relation("UserSettings")
+
+  // Relações de mensagens
+  conversationsAsUser1 Conversation[] @relation("ConversationUser1")
+  conversationsAsUser2 Conversation[] @relation("ConversationUser2")
+  sentMessages         DirectMessage[] @relation("SentMessages")
+  hubsCreated          Hub[]           @relation("HubCreator")
+  hubMessages          HubMessage[]    @relation("HubMessages")
+  hubMemberships       HubMember[]     @relation("HubMemberships")
+
+  // Relações de amizades (NOVO)
+  sentFriendships     Friendship[] @relation("SentFriendships")
+  receivedFriendships Friendship[] @relation("ReceivedFriendships")
+  eventAttendances   EventAttendee[] @relation("UserEvents")
+  notifications      Notification[]  @relation("UserNotifications")
+  createdEvents      DevEvent[]      @relation("UserCreatedEvents")
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([username])
+  @@index([email])
+  @@index([type])
+  @@map("users")
+}
+
+// Vaga de Emprego
+model Job {
+  id              String        @id @default(cuid())
+  companyId       String
+  company         User          @relation("CompanyJobs", fields: [companyId], references: [id], onDelete: Cascade)
+
+  title           String
+  location        String
+  type            JobType       @default(FullTime)
+  salary          String?
+  description     String        @db.Text
+  requirements    Json
+
+  applications    Application[]
+
+  views           Int           @default(0)
+  isActive        Boolean       @default(true)
+  vacancies       Int           @default(1)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([companyId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([isActive])
+  @@map("jobs")
+}
+
+// Candidatura a uma Vaga
+model Application {
+  id              String            @id @default(cuid())
+
+  jobId           String
+  job             Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  developerId     String
+  developer       User              @relation("DeveloperApplications", fields: [developerId], references: [id], onDelete: Cascade)
+
+  status          ApplicationStatus @default(PENDING)
+
+  aiScore         Int?
+  aiReasoning     String?           @db.Text
+
+  coverLetter     String?           @db.Text
+  resumeUrl       String?
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([jobId, developerId])
+  @@index([jobId])
+  @@index([developerId])
+  @@index([status])
+  @@map("applications")
+}
+
+// Projeto / Post no Feed
+model Project {
+  id              String    @id @default(cuid())
+
+  authorId        String
+  author          User      @relation("UserProjects", fields: [authorId], references: [id], onDelete: Cascade)
+
+  title           String
+  description     String    @db.Text
+  image           String?
+  tags            Json
+  githubUrl       String?
+
+  code            String?         @db.Text
+  language        CodeLanguage?   @default(html)
+
+  likes           Int       @default(0)
+  views           Int       @default(0)
+
+  comments        Comment[]
+  bookmarks       Bookmark[] @relation("ProjectBookmarks")
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("projects")
+}
+
+// Comentários em Projetos
+model Comment {
+  id              String    @id @default(cuid())
+
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  authorId        String
+  author          User      @relation("UserComments", fields: [authorId], references: [id], onDelete: Cascade)
+
+  content         String    @db.Text
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([projectId])
+  @@index([authorId])
+  @@map("comments")
+}
+
+// Showcase de Startups
+model StartupProject {
+  id              String          @id @default(cuid())
+
+  ownerId         String
+  owner           User            @relation("UserStartups", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name            String
+  tagline         String
+  description     String          @db.Text
+  logo            String
+  tags            Json
+  status          StartupStatus   @default(MVP)
+
+  code            String?         @db.Text
+  language        CodeLanguage?   @default(html)
+
+  upvotes         Int             @default(0)
+
+  websiteUrl      String?
+  githubUrl       String?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("startup_projects")
+}
+
+// Eventos para Desenvolvedores
+model DevEvent {
+  id              String      @id @default(cuid())
+  creatorId       String?
+  creator         User?       @relation("UserCreatedEvents", fields: [creatorId], references: [id], onDelete: SetNull)
+
+  title           String
+  organizer       String
+  date            DateTime
+  type            EventType
+  image           String
+  description     String?     @db.Text
+
+  isOnline        Boolean     @default(false)
+  location        String?
+
+  attendees       Int         @default(0)
+  maxAttendees    Int?
+
+  registrationUrl String?
+
+  attendees_list   EventAttendee[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([date])
+  @@index([type])
+  @@map("dev_events")
+}
+
+// Posts salvos pelo utilizador
+model Bookmark {
+  id              String    @id @default(cuid())
+
+  userId         String
+  user            User      @relation("UserBookmarks", fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId       String
+  project         Project   @relation("ProjectBookmarks", fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([userId, projectId])
+  @@index([userId])
+  @@index([projectId])
+  @@map("bookmarks")
+}
+
+// Configurações do utilizador
+model UserSettings {
+  id                  String              @id @default(cuid())
+
+  userId             String              @unique
+  user                User                @relation("UserSettings", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Notificações
+  emailNotifications  Boolean             @default(true)
+  pushNotifications   Boolean             @default(false)
+  jobAlerts           Boolean             @default(true)
+  messageAlerts       Boolean             @default(true)
+  weeklyDigest        Boolean             @default(false)
+
+  // Privacidade
+  profileVisibility   ProfileVisibility   @default(public)
+  showEmail           Boolean             @default(false)
+  showActivity        Boolean             @default(true)
+  allowMessages       Boolean             @default(true)
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([userId])
+  @@map("user_settings")
+}
+
+// ==================== MESSAGING SYSTEM ====================
+
+// Conversa direta entre dois utilizadores
+model Conversation {
+  id              String    @id @default(cuid())
+
+  user1Id         String
+  user1           User      @relation("ConversationUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+
+  user2Id         String
+  user2           User      @relation("ConversationUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+
+  lastMessageAt   DateTime  @default(now())
+
+  messages        DirectMessage[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  theme           Json?     // Customização da conversa (cores, fundo, etc.)
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+// Mensagem direta
+model DirectMessage {
+  id              String       @id @default(cuid())
+
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderId        String
+  sender          User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  content         String       @db.Text
+
+  isRead          Boolean      @default(false)
+  readAt          DateTime?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  type            MessageType  @default(TEXT)
+  fileUrl         String?
+  fileName        String?
+  audioUrl        String?
+  audioDuration   Int?
+  
+  isEdited        Boolean      @default(false)
+  isPinned        Boolean      @default(false)
+  isForwarded     Boolean      @default(false)
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("direct_messages")
+}
+
+// Hub/Comunidade
+model Hub {
+  id              String    @id @default(cuid())
+
+  name            String    @unique
+  description     String?   @db.Text
+  icon            String?
+  color           String?
+  coverImage      String?
+
+  createdById     String
+  createdBy       User      @relation("HubCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  membersCount    Int       @default(0)
+  messagesCount   Int       @default(0)
+
+  messages        HubMessage[]
+  members         HubMember[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([name])
+  @@index([createdAt])
+  @@map("hubs")
+}
+
+// Mensagem numa comunidade
+model HubMessage {
+  id              String    @id @default(cuid())
+
+  hubId           String
+  hub             Hub       @relation(fields: [hubId], references: [id], onDelete: Cascade)
+
+  authorId        String
+  author          User      @relation("HubMessages", fields: [authorId], references: [id], onDelete: Cascade)
+
+  content         String    @db.Text
+
+  likes           Int       @default(0)
+ 
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+ 
+  type            MessageType  @default(TEXT)
+  fileUrl         String?
+  fileName        String?
+  audioUrl        String?
+  audioDuration   Int?
+
+  isEdited        Boolean      @default(false)
+  isPinned        Boolean      @default(false)
+  isForwarded     Boolean      @default(false)
+
+  @@index([hubId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("hub_messages")
+}
+
+// Membro de um hub
+model HubMember {
+  id              String    @id @default(cuid())
+
+  hubId           String
+  hub             Hub       @relation(fields: [hubId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User      @relation("HubMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  muteNotifications Boolean @default(false)
+
+  joinedAt        DateTime  @default(now())
+
+  @@unique([hubId, userId])
+  @@index([hubId])
+  @@index([userId])
+  @@map("hub_members")
+}
+
+// ==================== FRIENDSHIP SYSTEM (NOVO) ====================
+
+// Amizades entre utilizadores
+model Friendship {
+  id         String           @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     FriendshipStatus @default(pending)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  sender   User @relation("SentFriendships", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedFriendships", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@map("friendships")
+}
+
+// Inscrições em Eventos (NOVO)
+model EventAttendee {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  event DevEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User     @relation("UserEvents", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@map("event_attendees")
+}
+
+// Notificações (NOVO)
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  
+  type      NotificationType
+  title     String
+  content   String           @db.Text
+  link      String?          // Link para navegar (ex: /jobs/123)
+  
+  isRead    Boolean          @default(false)
+  
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
+}

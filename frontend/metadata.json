@@ -1,0 +1,8 @@
+{
+  "name": "DevConnect - The LinkedIn for Developers",
+  "description": "A specialized networking and career platform for programmers, featuring GitHub integration, job listings, project showcases, and AI-powered profile optimization.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
