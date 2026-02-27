@@ -4,7 +4,7 @@ import {
   updateSettings,
   resetSettings,
   updateSettingsSchema,
-} from '../controllers/Settingscontroller';
+} from '../controllers/settingsController';
 import { requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 
