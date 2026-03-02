@@ -232,11 +232,7 @@ const AuthPage: React.FC = () => {
             </div>
 
             <div className="pt-8 border-t border-slate-800">
-              <p className="text-xs text-slate-500 mb-3">Contas de teste disponíveis:</p>
-              <div className="space-y-2 text-xs text-slate-600">
-                <p>👨‍💻 Dev: gabriel@example.com / password123</p>
-                <p>🏢 Company: contato@technova.com / password123</p>
-              </div>
+
             </div>
           </div>
 
