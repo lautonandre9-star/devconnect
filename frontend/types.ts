@@ -10,6 +10,7 @@ export interface RegisterData {
   role?: string;
   skills?: string[];
   website?: string;
+  otpCode: string;
 }
 
 export interface User {

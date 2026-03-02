@@ -1,15 +1,15 @@
 // src/pages/AuthPage.tsx
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  Code2, 
-  Mail, 
-  Lock, 
-  User, 
-  Building2, 
-  Globe, 
-  Github, 
-  Tag, 
+import {
+  Code2,
+  Mail,
+  Lock,
+  User,
+  Building2,
+  Globe,
+  Github,
+  Tag,
   Briefcase,
   Loader,
   Sparkles,
@@ -24,13 +24,17 @@ type AuthMode = 'login' | 'register';
 type UserType = 'developer' | 'company';
 
 const AuthPage: React.FC = () => {
-  const { login, register } = useAuth();
-  
+  const { login, register, sendOTP, forgotPassword, resetPassword } = useAuth();
+
   const [mode, setMode] = useState<AuthMode>('login');
   const [userType, setUserType] = useState<UserType>('developer');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showOTP, setShowOTP] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [recoveryStep, setRecoveryStep] = useState<'request' | 'reset'>('request');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -91,6 +95,7 @@ const AuthPage: React.FC = () => {
         password: formData.password,
         type: userType,
         bio: formData.bio || `${userType === 'developer' ? 'Developer' : 'Company'} no DevConnect`,
+        otpCode: otpCode,
       };
 
       if (userType === 'developer') {
@@ -110,6 +115,67 @@ const AuthPage: React.FC = () => {
       setSuccess('Conta criada com sucesso! Bem-vindo ao DevConnect!');
     } catch (err: any) {
       setError(err.message || 'Erro ao criar conta. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRequestOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await sendOTP(formData.email, 'REGISTRATION');
+      setShowOTP(true);
+      setSuccess(`Código enviado para ${formData.email}`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await forgotPassword(formData.email);
+      setRecoveryStep('reset');
+      setSuccess('Se o e-mail existir, um código foi enviado.');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('As senhas não coincidem');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await resetPassword({
+        email: formData.email,
+        otpCode,
+        newPassword: formData.password
+      });
+      setSuccess('Senha alterada com sucesso! Faça login agora.');
+      setShowForgotPassword(false);
+      setMode('login');
+      setRecoveryStep('request');
+      setOtpCode('');
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -216,7 +282,7 @@ const AuthPage: React.FC = () => {
             )}
 
             {/* Type Selector (Register Only) */}
-            {mode === 'register' && (
+            {mode === 'register' && !showOTP && (
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-slate-300 mb-3">
                   Tipo de Conta
@@ -225,11 +291,10 @@ const AuthPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setUserType('developer')}
-                    className={`p-4 rounded-xl border-2 transition-all ${
-                      userType === 'developer'
-                        ? 'border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/20'
-                        : 'border-slate-700 hover:border-slate-600 bg-slate-800/30'
-                    }`}
+                    className={`p-4 rounded-xl border-2 transition-all ${userType === 'developer'
+                      ? 'border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/20'
+                      : 'border-slate-700 hover:border-slate-600 bg-slate-800/30'
+                      }`}
                   >
                     <Code2 className={`w-7 h-7 mx-auto mb-2 ${userType === 'developer' ? 'text-indigo-400' : 'text-slate-500'}`} />
                     <div className={`font-semibold text-sm ${userType === 'developer' ? 'text-indigo-400' : 'text-slate-400'}`}>
@@ -240,11 +305,10 @@ const AuthPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setUserType('company')}
-                    className={`p-4 rounded-xl border-2 transition-all ${
-                      userType === 'company'
-                        ? 'border-fuchsia-500 bg-fuchsia-500/10 shadow-lg shadow-fuchsia-500/20'
-                        : 'border-slate-700 hover:border-slate-600 bg-slate-800/30'
-                    }`}
+                    className={`p-4 rounded-xl border-2 transition-all ${userType === 'company'
+                      ? 'border-fuchsia-500 bg-fuchsia-500/10 shadow-lg shadow-fuchsia-500/20'
+                      : 'border-slate-700 hover:border-slate-600 bg-slate-800/30'
+                      }`}
                   >
                     <Building2 className={`w-7 h-7 mx-auto mb-2 ${userType === 'company' ? 'text-fuchsia-400' : 'text-slate-500'}`} />
                     <div className={`font-semibold text-sm ${userType === 'company' ? 'text-fuchsia-400' : 'text-slate-400'}`}>
@@ -255,8 +319,102 @@ const AuthPage: React.FC = () => {
               </div>
             )}
 
+            {/* Forgot Password Flow */}
+            {mode === 'login' && showForgotPassword && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setRecoveryStep('request');
+                      setError('');
+                      setSuccess('');
+                    }}
+                    className="text-slate-400 hover:text-white transition"
+                  >
+                    ← Voltar
+                  </button>
+                  <h3 className="text-xl font-bold text-white">Recuperar Senha</h3>
+                </div>
+
+                {recoveryStep === 'request' ? (
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <p className="text-sm text-slate-400">Insira seu e-mail para receber um código de recuperação.</p>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
+                        placeholder="seu@email.com"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 rounded-xl transition-all disabled:opacity-50"
+                    >
+                      {loading ? 'Enviando...' : 'Enviar Código'}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleResetPassword} className="space-y-4">
+                    <p className="text-sm text-slate-400">Enviamos um código para {formData.email}.</p>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Código OTP</label>
+                      <input
+                        type="text"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                        required
+                        maxLength={6}
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white text-center text-2xl tracking-[0.5em]"
+                        placeholder="000000"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Nova Senha</label>
+                      <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required
+                        minLength={6}
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Confirmar Nova Senha</label>
+                      <input
+                        type="password"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        required
+                        minLength={6}
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 rounded-xl transition-all disabled:opacity-50"
+                    >
+                      {loading ? 'Redefinindo...' : 'Redefinir Senha'}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+
             {/* Login Form */}
-            {mode === 'login' && (
+            {mode === 'login' && !showForgotPassword && (
               <form onSubmit={handleLogin} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -292,6 +450,15 @@ const AuthPage: React.FC = () => {
                       placeholder="••••••••"
                     />
                   </div>
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-xs text-indigo-400 hover:text-indigo-300 transition"
+                    >
+                      Esqueceu a senha?
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -316,144 +483,199 @@ const AuthPage: React.FC = () => {
 
             {/* Register Form */}
             {mode === 'register' && (
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Nome {userType === 'company' && 'da Empresa'}
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
-                      placeholder={userType === 'developer' ? 'João Silva' : 'Tech Corp'}
-                    />
-                  </div>
+              <>
+                {!showOTP ? (
+                  <form onSubmit={handleRequestOTP} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                          Nome {userType === 'company' && 'da Empresa'}
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleChange}
+                          required
+                          className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
+                          placeholder={userType === 'developer' ? 'João Silva' : 'Tech Corp'}
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Username
-                    </label>
-                    <input
-                      type="text"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
-                      placeholder="@username"
-                    />
-                  </div>
-                </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                          Username
+                        </label>
+                        <input
+                          type="text"
+                          name="username"
+                          value={formData.username}
+                          onChange={handleChange}
+                          required
+                          className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
+                          placeholder="@username"
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
-                    placeholder="seu@email.com"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Senha
-                    </label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                      minLength={6}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
-                      placeholder="••••••••"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Confirmar
-                    </label>
-                    <input
-                      type="password"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      minLength={6}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
-                      placeholder="••••••••"
-                    />
-                  </div>
-                </div>
-
-                {userType === 'developer' && (
-                  <>
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-2">
-                        Skills (separadas por vírgula)
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
+                        placeholder="seu@email.com"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                          Senha
+                        </label>
+                        <input
+                          type="password"
+                          name="password"
+                          value={formData.password}
+                          onChange={handleChange}
+                          required
+                          minLength={6}
+                          className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
+                          placeholder="••••••••"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                          Confirmar
+                        </label>
+                        <input
+                          type="password"
+                          name="confirmPassword"
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          required
+                          minLength={6}
+                          className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
+                          placeholder="••••••••"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className={`w-full font-semibold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg ${userType === 'developer'
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-600/20'
+                        : 'bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-700 hover:to-pink-700 shadow-fuchsia-600/20'
+                        } text-white`}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader className="w-5 h-5 animate-spin" />
+                          Enviando código...
+                        </>
+                      ) : (
+                        <>
+                          Continuar
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleRegister} className="space-y-4">
+                    <div className="text-center mb-6">
+                      <p className="text-sm text-slate-400">Insira o código enviado para</p>
+                      <p className="text-white font-semibold">{formData.email}</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Código de Verificação (6 dígitos)
                       </label>
                       <input
                         type="text"
-                        name="skills"
-                        value={formData.skills}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
-                        placeholder="React, Node.js, TypeScript"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                        required
+                        maxLength={6}
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white text-center text-2xl tracking-[0.5em]"
+                        placeholder="000000"
+                        autoFocus
                       />
                     </div>
-                  </>
-                )}
 
-                {userType === 'company' && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Website
-                    </label>
-                    <input
-                      type="url"
-                      name="website"
-                      value={formData.website}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
-                      placeholder="https://minhaempresa.com"
-                    />
-                  </div>
-                )}
+                    {userType === 'developer' && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-2">
+                            Skills (separadas por vírgula)
+                          </label>
+                          <input
+                            type="text"
+                            name="skills"
+                            value={formData.skills}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
+                            placeholder="React, Node.js, TypeScript"
+                          />
+                        </div>
+                      </>
+                    )}
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`w-full font-semibold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg ${
-                    userType === 'developer'
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-600/20'
-                      : 'bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-700 hover:to-pink-700 shadow-fuchsia-600/20'
-                  } text-white`}
-                >
-                  {loading ? (
-                    <>
-                      <Loader className="w-5 h-5 animate-spin" />
-                      Criando conta...
-                    </>
-                  ) : (
-                    <>
-                      Criar Conta
-                      <ArrowRight className="w-5 h-5" />
-                    </>
-                  )}
-                </button>
-              </form>
+                    {userType === 'company' && (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                          Website
+                        </label>
+                        <input
+                          type="url"
+                          name="website"
+                          value={formData.website}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition text-white placeholder-slate-500"
+                          placeholder="https://minhaempresa.com"
+                        />
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className={`w-full font-semibold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg ${userType === 'developer'
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-600/20'
+                        : 'bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-700 hover:to-pink-700 shadow-fuchsia-600/20'
+                        } text-white`}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader className="w-5 h-5 animate-spin" />
+                          Finalizando...
+                        </>
+                      ) : (
+                        <>
+                          Finalizar Cadastro
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowOTP(false)}
+                      className="w-full text-sm text-slate-400 hover:text-white transition"
+                    >
+                      Alterar dados / Reenviar e-mail
+                    </button>
+                  </form>
+                )}
+              </>
             )}
 
             {/* Toggle Mode */}
@@ -487,3 +709,11 @@ const AuthPage: React.FC = () => {
 };
 
 export default AuthPage;
+
+function sendOTP(email: string, arg1: string) {
+  throw new Error('Function not implemented.');
+}
+function resetPassword(arg0: { email: string; otpCode: string; newPassword: string; }) {
+  throw new Error('Function not implemented.');
+}
+

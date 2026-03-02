@@ -9,6 +9,9 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
+  sendOTP: (email: string, type: 'REGISTRATION' | 'PASSWORD_RESET') => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (data: any) => Promise<void>;
   logout: () => void;
 }
 
@@ -78,6 +81,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const sendOTP = async (email: string, type: 'REGISTRATION' | 'PASSWORD_RESET') => {
+    try {
+      await api.auth.sendOTP(email, type);
+    } catch (err: any) {
+      const message = err?.response?.data?.error || err?.message || 'Erro ao enviar código';
+      throw new Error(message);
+    }
+  };
+
+  const forgotPassword = async (email: string) => {
+    try {
+      await api.auth.forgotPassword(email);
+    } catch (err: any) {
+      const message = err?.response?.data?.error || err?.message || 'Erro ao solicitar recuperação';
+      throw new Error(message);
+    }
+  };
+
+  const resetPassword = async (data: any) => {
+    try {
+      await api.auth.resetPassword(data);
+    } catch (err: any) {
+      const message = err?.response?.data?.error || err?.message || 'Erro ao redefinir senha';
+      throw new Error(message);
+    }
+  };
+
   const updateUser = async (data: Partial<User>) => {
     try {
       const response = await api.users.updateProfile(data);
@@ -98,6 +128,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         login,
         register,
         updateUser,
+        sendOTP,
+        forgotPassword,
+        resetPassword,
         logout
       }}
     >

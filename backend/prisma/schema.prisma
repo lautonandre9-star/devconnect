@@ -138,6 +138,9 @@ model User {
   notifications      Notification[]  @relation("UserNotifications")
   createdEvents      DevEvent[]      @relation("UserCreatedEvents")
 
+  isVerified      Boolean   @default(false)
+  phone           String?   @unique
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -558,4 +561,24 @@ model Notification {
   @@index([userId])
   @@index([createdAt])
   @@map("notifications")
+}
+
+// ==================== OTP SYSTEM (NOVO) ====================
+
+enum OTPType {
+  REGISTRATION
+  PASSWORD_RESET
+}
+
+model OTP {
+  id          String   @id @default(cuid())
+  identifier  String   // e-mail ou número de telefone
+  code        String
+  type        OTPType
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([identifier])
+  @@index([code])
+  @@map("otps")
 }

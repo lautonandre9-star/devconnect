@@ -100,6 +100,18 @@ export const api = {
     },
     logout: async () => {
       await apiInstance.post('/auth/logout');
+    },
+    sendOTP: async (email: string, type: 'REGISTRATION' | 'PASSWORD_RESET') => {
+      const response = await apiInstance.post('/auth/send-otp', { email, type });
+      return response.data;
+    },
+    forgotPassword: async (email: string) => {
+      const response = await apiInstance.post('/auth/forgot-password', { email });
+      return response.data;
+    },
+    resetPassword: async (data: any) => {
+      const response = await apiInstance.post('/auth/reset-password', data);
+      return response.data;
     }
   },
 

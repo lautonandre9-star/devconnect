@@ -6,11 +6,35 @@ import {
   getMe,
   registerSchema,
   loginSchema,
+  requestOTP,
+  requestOTPSchema,
+  forgotPassword,
+  forgotPasswordSchema,
+  resetPassword,
+  resetPasswordSchema,
 } from '../controllers/authController';
 import { requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 
 const router = Router();
+
+/**
+ * POST /api/auth/send-otp
+ * Solicitar código de verificação
+ */
+router.post('/send-otp', validate(requestOTPSchema), requestOTP);
+
+/**
+ * POST /api/auth/forgot-password
+ * Solicitar recuperação de senha
+ */
+router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
+
+/**
+ * POST /api/auth/reset-password
+ * Redefinir senha usando OTP
+ */
+router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 
 /**
  * POST /api/auth/register
